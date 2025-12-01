@@ -87,6 +87,9 @@ export class OpenRouterProvider extends BaseProvider {
 
   /**
    * Fetch models with caching support
+   * Note: OpenRouter's /models endpoint doesn't require authentication,
+   * but authenticated requests may provide additional model information
+   * in future API versions.
    */
   override async fetchModels(apiKey?: string): Promise<ProviderModelInfo[]> {
     const modelsUrl = this.getModelsUrl();
@@ -95,8 +98,14 @@ export class OpenRouterProvider extends BaseProvider {
     }
 
     try {
-      // OpenRouter doesn't require auth for models endpoint
-      const response = await fetch(modelsUrl);
+      // OpenRouter's models endpoint is publicly accessible
+      // Authentication is optional but may provide additional info in the future
+      const headers: Record<string, string> = {};
+      if (apiKey) {
+        headers["Authorization"] = `Bearer ${apiKey}`;
+      }
+      
+      const response = await fetch(modelsUrl, { headers });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch models: ${response.status}`);

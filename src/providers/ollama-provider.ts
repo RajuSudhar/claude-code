@@ -23,20 +23,56 @@ import type {
 } from "./types.js";
 
 export class OllamaProvider extends BaseProvider {
-  readonly config: ProviderConfig = {
-    id: "ollama",
-    name: "Ollama",
-    baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-    completionsPath: "/v1/chat/completions",
-    modelsPath: "/api/tags",
-    auth: {
-      type: "none", // Ollama typically doesn't require authentication
-    },
-    headers: {},
-    supportsStreaming: true,
-    supportsTools: true, // Newer Ollama versions support function calling
-    defaultModel: "llama2",
-  };
+  private readonly validatedBaseUrl: string;
+
+  constructor() {
+    super();
+    // Validate and sanitize the base URL from environment
+    const envUrl = process.env.OLLAMA_BASE_URL;
+    this.validatedBaseUrl = this.validateBaseUrl(envUrl);
+  }
+
+  /**
+   * Validate and sanitize the base URL to prevent URL injection
+   */
+  private validateBaseUrl(url: string | undefined): string {
+    const defaultUrl = "http://localhost:11434";
+    
+    if (!url) {
+      return defaultUrl;
+    }
+
+    try {
+      const parsed = new URL(url);
+      // Only allow http and https protocols
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        console.warn(`[Ollama] Invalid protocol in OLLAMA_BASE_URL: ${parsed.protocol}, using default`);
+        return defaultUrl;
+      }
+      // Return the validated URL (normalized)
+      return parsed.origin;
+    } catch {
+      console.warn(`[Ollama] Invalid OLLAMA_BASE_URL: ${url}, using default`);
+      return defaultUrl;
+    }
+  }
+
+  get config(): ProviderConfig {
+    return {
+      id: "ollama",
+      name: "Ollama",
+      baseUrl: this.validatedBaseUrl,
+      completionsPath: "/v1/chat/completions",
+      modelsPath: "/api/tags",
+      auth: {
+        type: "none", // Ollama typically doesn't require authentication
+      },
+      headers: {},
+      supportsStreaming: true,
+      supportsTools: true, // Newer Ollama versions support function calling
+      defaultModel: "llama2",
+    };
+  }
 
   /**
    * Check if this is an Ollama model

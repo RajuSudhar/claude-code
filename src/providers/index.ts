@@ -64,4 +64,9 @@ export {
 
 // Built-in providers
 export { OpenRouterProvider } from "./openrouter-provider.js";
+
+// Optional providers (not registered by default, require manual registration)
+// To use Ollama:
+//   import { OllamaProvider, registerProvider } from "./providers";
+//   registerProvider(new OllamaProvider());
 export { OllamaProvider } from "./ollama-provider.js";

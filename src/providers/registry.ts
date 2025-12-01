@@ -9,6 +9,11 @@
 import type { Provider, ProviderConfig } from "./types.js";
 import { OpenRouterProvider } from "./openrouter-provider.js";
 
+// Note: OllamaProvider is available but not registered by default
+// since it requires a local Ollama installation. Users can register it manually:
+// import { OllamaProvider, registerProvider } from "./providers";
+// registerProvider(new OllamaProvider());
+
 /**
  * Registry for managing LLM providers
  */
