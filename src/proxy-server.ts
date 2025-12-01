@@ -4,9 +4,13 @@ import { serve } from "@hono/node-server";
 import { log, isLoggingEnabled } from "./logger.js";
 import type { ProxyServer } from "./types.js";
 import { NativeHandler } from "./handlers/native-handler.js";
+import { NeuroLinkHandler } from "./handlers/neurolink-handler.js";
 import { ProviderHandler } from "./handlers/provider-handler.js";
 import type { ModelHandler } from "./handlers/types.js";
 import { getProviderRegistry } from "./providers/index.js";
+
+// Check if NeuroLink should be used (via env var or if neurolink package is available)
+const USE_NEUROLINK = process.env.USE_NEUROLINK === 'true' || process.env.CLAUDISH_USE_NEUROLINK === 'true';
 
 export async function createProxyServer(
   port: number,
@@ -25,9 +29,15 @@ export async function createProxyServer(
   // Helper to get or create handler for a target model
   const getProviderHandler = (targetModel: string): ModelHandler => {
       if (!handlers.has(targetModel)) {
-          // Get the appropriate provider for this model from the registry
-          const provider = providerRegistry.getForModel(targetModel);
-          handlers.set(targetModel, new ProviderHandler(targetModel, openrouterApiKey, port, provider));
+          if (USE_NEUROLINK) {
+              // Use NeuroLink for multi-provider routing
+              handlers.set(targetModel, new NeuroLinkHandler(targetModel, openrouterApiKey, port));
+              log(`[Proxy] Using NeuroLink handler for model: ${targetModel}`);
+          } else {
+              // Fall back to custom provider handler (for backward compatibility)
+              const provider = providerRegistry.getForModel(targetModel);
+              handlers.set(targetModel, new ProviderHandler(targetModel, openrouterApiKey, port, provider));
+          }
       }
       return handlers.get(targetModel)!;
   };

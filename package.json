@@ -29,6 +29,7 @@
     "@hono/node-server": "^1.19.6",
     "@inquirer/prompts": "^8.0.1",
     "@inquirer/search": "^4.0.1",
+    "@juspay/neurolink": "^8.4.0",
     "@modelcontextprotocol/sdk": "^1.22.0",
     "dotenv": "^17.2.3",
     "hono": "^4.10.6",

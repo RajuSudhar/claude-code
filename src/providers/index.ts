@@ -9,29 +9,21 @@
  * - BaseProvider: Abstract class with common provider functionality
  * - ProviderRegistry: Central registry for managing providers
  * - Concrete Providers: Implementations for specific APIs (OpenRouter, Ollama, etc.)
+ * - NeuroLink Wrapper: Integration with @juspay/neurolink for enterprise multi-provider support
  * 
  * Adding a New Provider:
  * 1. Create a new file: `your-provider.ts`
  * 2. Extend `BaseProvider` and implement required methods
  * 3. Register in the global registry or create custom registry
  * 
- * Example:
+ * Using NeuroLink (Recommended):
  * ```typescript
- * import { BaseProvider, registerProvider } from "./providers";
+ * import { getNeuroLinkWrapper } from "./providers";
  * 
- * class MyProvider extends BaseProvider {
- *   readonly config = {
- *     id: "myprovider",
- *     name: "My Provider",
- *     baseUrl: "https://api.myprovider.com",
- *     completionsPath: "/v1/completions",
- *     auth: { type: "bearer", headerName: "Authorization", prefix: "Bearer " },
- *     supportsStreaming: true,
- *     supportsTools: false,
- *   };
- * }
- * 
- * registerProvider(new MyProvider());
+ * const neurolink = getNeuroLinkWrapper({ model: "openai/gpt-4o" });
+ * const result = await neurolink.generate({
+ *   input: { text: "Hello world" }
+ * });
  * ```
  */
 
@@ -70,3 +62,15 @@ export { OpenRouterProvider } from "./openrouter-provider.js";
 //   import { OllamaProvider, registerProvider } from "./providers";
 //   registerProvider(new OllamaProvider());
 export { OllamaProvider } from "./ollama-provider.js";
+
+// NeuroLink integration (recommended for multi-provider support)
+export {
+  NeuroLinkWrapper,
+  getNeuroLinkWrapper,
+  createNeuroLinkWrapper,
+  type NeuroLinkConfig,
+  type NeuroLinkRequest,
+  type NeuroLinkResult,
+  type NeuroLinkStreamResult,
+  type NeuroLinkMessage,
+} from "./neurolink-wrapper.js";
