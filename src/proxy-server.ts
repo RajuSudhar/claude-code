@@ -4,8 +4,9 @@ import { serve } from "@hono/node-server";
 import { log, isLoggingEnabled } from "./logger.js";
 import type { ProxyServer } from "./types.js";
 import { NativeHandler } from "./handlers/native-handler.js";
-import { OpenRouterHandler } from "./handlers/openrouter-handler.js";
+import { ProviderHandler } from "./handlers/provider-handler.js";
 import type { ModelHandler } from "./handlers/types.js";
+import { getProviderRegistry } from "./providers/index.js";
 
 export async function createProxyServer(
   port: number,
@@ -19,21 +20,24 @@ export async function createProxyServer(
   // Define handlers for different roles
   const nativeHandler = new NativeHandler(anthropicApiKey);
   const handlers = new Map<string, ModelHandler>(); // Map from Target Model ID -> Handler Instance
+  const providerRegistry = getProviderRegistry();
 
   // Helper to get or create handler for a target model
-  const getOpenRouterHandler = (targetModel: string): ModelHandler => {
+  const getProviderHandler = (targetModel: string): ModelHandler => {
       if (!handlers.has(targetModel)) {
-          handlers.set(targetModel, new OpenRouterHandler(targetModel, openrouterApiKey, port));
+          // Get the appropriate provider for this model from the registry
+          const provider = providerRegistry.getForModel(targetModel);
+          handlers.set(targetModel, new ProviderHandler(targetModel, openrouterApiKey, port, provider));
       }
       return handlers.get(targetModel)!;
   };
 
   // Pre-initialize handlers for mapped models to ensure warm-up (context window fetch etc)
-  if (model) getOpenRouterHandler(model);
-  if (modelMap?.opus) getOpenRouterHandler(modelMap.opus);
-  if (modelMap?.sonnet) getOpenRouterHandler(modelMap.sonnet);
-  if (modelMap?.haiku) getOpenRouterHandler(modelMap.haiku);
-  if (modelMap?.subagent) getOpenRouterHandler(modelMap.subagent);
+  if (model) getProviderHandler(model);
+  if (modelMap?.opus) getProviderHandler(modelMap.opus);
+  if (modelMap?.sonnet) getProviderHandler(modelMap.sonnet);
+  if (modelMap?.haiku) getProviderHandler(modelMap.haiku);
+  if (modelMap?.subagent) getProviderHandler(modelMap.subagent);
 
   const getHandlerForRequest = (requestedModel: string): ModelHandler => {
       // 1. Monitor Mode Override
@@ -52,8 +56,8 @@ export async function createProxyServer(
           // Assuming Haiku mapping covers subagent unless custom logic added.
       }
 
-      // 3. Native vs OpenRouter Decision
-      // Heuristic: OpenRouter models have "/", Native ones don't.
+      // 3. Native vs Provider Decision
+      // Heuristic: Provider models have "/", Native ones don't.
       const isNative = !target.includes("/");
 
       if (isNative) {
@@ -61,8 +65,8 @@ export async function createProxyServer(
           return nativeHandler;
       }
 
-      // 4. OpenRouter Handler
-      return getOpenRouterHandler(target);
+      // 4. Provider Handler (uses registry to select appropriate provider)
+      return getProviderHandler(target);
   };
 
   const app = new Hono();
@@ -78,7 +82,7 @@ export async function createProxyServer(
           const reqModel = body.model || "claude-3-opus-20240229";
           const handler = getHandlerForRequest(reqModel);
 
-          // If native, we just forward. OpenRouter needs estimation.
+          // If native, we just forward. Provider handler needs estimation.
           if (handler instanceof NativeHandler) {
               const headers: any = { "Content-Type": "application/json" };
               if (anthropicApiKey) headers["x-api-key"] = anthropicApiKey;
@@ -86,7 +90,7 @@ export async function createProxyServer(
               const res = await fetch("https://api.anthropic.com/v1/messages/count_tokens", { method: "POST", headers, body: JSON.stringify(body) });
               return c.json(await res.json());
           } else {
-              // OpenRouter handler logic (estimation)
+              // Provider handler logic (estimation)
               const txt = JSON.stringify(body);
               return c.json({ input_tokens: Math.ceil(txt.length / 4) });
           }
